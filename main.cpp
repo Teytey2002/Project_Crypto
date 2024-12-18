@@ -4,6 +4,7 @@
 #include <vector>
 #include <string>
 #include <iomanip>
+#include <math.h>
 using std::cout;
 using std::endl;
 using std::vector;
@@ -75,6 +76,7 @@ void ABCDPermutation(State* s) {
         stirColumns(s);
         postShiftRows(s);
         addRoundConstant(s, i);
+        
     }
 }
 
@@ -100,11 +102,12 @@ vector<uint64_t> extractMessage(const string &input) {
         }
         message.push_back(block);
     }
-
+    nbOfBytes %= 8;
+    std::cout <<"bytes:" << (int)nbOfBytes << std::endl;
     if (nbOfBytes < 8) {
         uint64_t padding = (1ULL << ((8 - nbOfBytes - 1) * 8 + 7)) + 1;
         padding <<= (nbOfBytes * 8);
-        if (message.empty()) {
+        if (nbOfBytes == 0) {
             message.push_back(padding);
         } else {
             message.back() |= padding;
@@ -114,8 +117,9 @@ vector<uint64_t> extractMessage(const string &input) {
     return message;
 }
 
-string ABCDSponge(const string& input) {
+string ABCDSponge(const string& input, const int squeezeAmount) {
     vector<uint64_t> message = extractMessage(input);
+    
 
     State s = {0, 0, 0, 0};
     // Absorbing phase
@@ -126,7 +130,7 @@ string ABCDSponge(const string& input) {
         ABCDPermutation(&s);
     }
 
-    uint64_t output[3];
+    uint64_t output[squeezeAmount];
     //Squeezing phase
     for (uint64_t &i : output) {
         cout << "Squeezing: " << std::hex << s.a << endl;
@@ -155,15 +159,30 @@ void printStringInHex(string &output) {
     std::cout << std::endl;
 }
 
-int main(){
-    uint64_t a,b,c,d;
-    //a = 0x0123456789ABCDEF, b = 0x2222222222222222, c = 0x1231231231231231, d = 0xABCDABCDABCDABCD;
-    a = 0x0000000000000000, b = 0x0000000000000000, c = 0x0000000000000000, d = 0x0000000000000000;
-    State s = {a, b, c, d};
-    ABCDPermutation(&s);
+string ABCDMAC(const string& key, const string& message){
+    string input = key +  message;
+    printStringInHex(input);
+    string output = ABCDSponge(input, 2);
 
-    string output = ABCDSponge("0123456789");
-    printStringInHex(output);
+
+    return output.substr(0, 16);
+}
+
+int main(){
+    //uint64_t a,b,c,d;
+    //a = 0xb8046f1da67a3252, b = 0x2995348373f1b69b, c = 0xad546eb4f9d2ff93, d = 0x386e6c904771d319;
+    ////a = 0x4847464544434241, b = 0x0000000000000000, c = 0x0000000000000000, d = 0x0000000000000000;
+    //State s = {a, b, c, d};
+    //ABCDPermutation(&s);
+    //printState(&s);
+
+    //string output = ABCDSponge("0123456789");
+    //printStringInHex(output);
+    string key = "ABCDEFGHIJKLMNOP";
+    string message = "This message has changed";
+    string MAC = ABCDMAC(key, message);
+
+    printStringInHex(MAC);
 
     return 0;
 
