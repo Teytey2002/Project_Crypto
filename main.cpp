@@ -103,7 +103,6 @@ vector<uint64_t> extractMessage(const string &input) {
         message.push_back(block);
     }
     nbOfBytes %= 8;
-    std::cout <<"bytes:" << (int)nbOfBytes << std::endl;
     if (nbOfBytes < 8) {
         uint64_t padding = (1ULL << ((8 - nbOfBytes - 1) * 8 + 7)) + 1;
         padding <<= (nbOfBytes * 8);
@@ -124,8 +123,6 @@ string ABCDSponge(const string& input, const int squeezeAmount) {
     State s = {0, 0, 0, 0};
     // Absorbing phase
     for (uint64_t i : message) {
-        cout << "Absorbing: " << std::hex << i << endl;
-        printState(&s);
         s.a ^= i;
         ABCDPermutation(&s);
     }
@@ -133,8 +130,6 @@ string ABCDSponge(const string& input, const int squeezeAmount) {
     uint64_t output[squeezeAmount];
     //Squeezing phase
     for (uint64_t &i : output) {
-        cout << "Squeezing: " << std::hex << s.a << endl;
-        printState(&s);
         i = s.a;
         ABCDPermutation(&s);
     }
@@ -160,12 +155,26 @@ void printStringInHex(string &output) {
 }
 
 string ABCDMAC(const string& key, const string& message){
-    string input = key +  message;
-    printStringInHex(input);
+    string input = key + message;
     string output = ABCDSponge(input, 2);
 
 
     return output.substr(0, 16);
+}
+
+string ABCDKeystream(const string& key, const uint64_t diversifier, const uint64_t length) {
+    string input = key + std::to_string(diversifier);
+    int squeezeAmount = ceil((double) length / 8);
+    string output = ABCDSponge(input, squeezeAmount);
+    return output;
+}
+
+string xorStrings(const string& a, const string& b) {
+    string result;
+    for (int i = 0; i < a.size(); i++) {
+        result.push_back(a[i] ^ b[i]);
+    }
+    return result;
 }
 
 int main(){
@@ -180,9 +189,16 @@ int main(){
     //printStringInHex(output);
     string key = "ABCDEFGHIJKLMNOP";
     string message = "This message has changed";
-    string MAC = ABCDMAC(key, message);
+    // string MAC = ABCDMAC(key, message);
+    // printStringInHex(MAC);
 
-    printStringInHex(MAC);
+    cout << "Message: " << message << endl;
+    string keystream = ABCDKeystream(key, 0, message.size());
+    string encryptedMessage = xorStrings(message, keystream);
+    cout << "Encrypted message: ";
+    printStringInHex(encryptedMessage);
+    string decryptedMessage = xorStrings(encryptedMessage, keystream);
+    cout << "Decrypted message: " << decryptedMessage << endl;
 
     return 0;
 
